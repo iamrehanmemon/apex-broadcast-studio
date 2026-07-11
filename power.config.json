@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "appId": "f9dd6a18-54d4-4a1a-996b-16f249a86440",
+  "appDisplayName": "Broadcast Studio",
+  "region": "prod",
+  "appType": "CodeApp",
+  "environmentId": "3a6bc8d5-b7c4-e349-939b-af389e439e8b",
+  "description": " ",
+  "buildPath": "./dist",
+  "buildEntryPoint": "index.html",
+  "localAppUrl": "http://localhost:3000",
+  "logoPath": "Default",
+  "connectionReferences": {},
+  "databaseReferences": {
+    "default.cds": {
+      "dataSources": {
+        "announcementtemplates": {
+          "entitySetName": "cr133_announcementtemplates",
+          "logicalName": "cr133_announcementtemplate",
+          "isHidden": false
+        },
+        "announcements": {
+          "entitySetName": "cr133_announcements",
+          "logicalName": "cr133_announcement",
+          "isHidden": false
+        }
+      },
+      "environmentVariableName": ""
+    }
+  }
+}
