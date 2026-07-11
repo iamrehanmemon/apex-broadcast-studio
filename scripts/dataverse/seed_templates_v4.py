@@ -4,7 +4,9 @@ import subprocess
 import urllib.request
 import urllib.error
 
-ORG_URL = "https://your-org.crm.dynamics.com"
+import os
+
+ORG_URL = os.environ.get("DATAVERSE_ORG_URL", "https://your-org.crm.dynamics.com")
 BASE_URL = f"{ORG_URL}/api/data/v9.2"
 
 TOKEN = subprocess.run(

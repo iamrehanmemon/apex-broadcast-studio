@@ -4,11 +4,13 @@ import sys
 import urllib.request
 import urllib.error
 
-ORG_URL = "https://your-org.crm.dynamics.com"
+import os
+
+ORG_URL = os.environ.get("DATAVERSE_ORG_URL", "https://your-org.crm.dynamics.com")
 BASE_URL = f"{ORG_URL}/api/data/v9.2"
 SOLUTION_UNIQUE_NAME = "BroadcastStudio"
 ROLE_NAME = "Broadcast Studio Author"
-USER_EMAIL = "you@your-org.onmicrosoft.com"
+USER_EMAIL = os.environ.get("DATAVERSE_USER_EMAIL", "you@your-org.onmicrosoft.com")
 TPL_LOGICAL = "cr133_announcementtemplate"
 ANN_LOGICAL = "cr133_announcement"
 TPL_SCHEMA = "cr133_AnnouncementTemplate"  # privilege names use SchemaName casing, not logical name

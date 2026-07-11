@@ -8,9 +8,11 @@ Run in this order for a fresh environment:
 2. `setup_security_role.py` — creates the "Broadcast Studio Author" security role, grants table privileges, assigns to a user.
 3. `add_layout_column.py` — adds the `cr133_layout` picklist column (message/spotlight/celebration/memoriam/condolence/stats/event/bulletins).
 4. `add_categories.py` — adds the Recognition / Events & Social / Operations Updates category choice values.
-5. `seed_templates_v3.py` then `seed_templates_v4.py` — seed the 13 + 21 template rows (34 total).
+5. `seed_templates_v3.py`, then `seed_templates_v4.py`, then `seed_templates_v5.py` — seed the 13 + 21 + 2 template rows (36 total).
 
 ## Prerequisites
 
 - `az login --allow-no-subscriptions` (tenant-level login is enough; no Azure subscription needed)
-- Edit `ORG_URL` at the top of each script to your environment's Dataverse Web API URL (`https://<org>.crm.dynamics.com`) and `SOLUTION_UNIQUE_NAME`/publisher prefix if different.
+- Set the `DATAVERSE_ORG_URL` environment variable to your environment's Dataverse Web API base URL (`https://<org>.crm.dynamics.com`), e.g. `export DATAVERSE_ORG_URL=https://contoso.crm.dynamics.com`. Defaults to a placeholder if unset.
+- `setup_security_role.py` also reads `DATAVERSE_USER_EMAIL` for the account to assign the role to (defaults to a placeholder if unset).
+- Edit `SOLUTION_UNIQUE_NAME`/publisher prefix in the scripts if you want a different solution name than `BroadcastStudio`.
