@@ -1,0 +1,99 @@
+{
+  "name": "Send Announcement Email",
+  "id": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+  "type": "Microsoft.PowerApps/apis",
+  "properties": {
+    "displayName": "Send Announcement Email",
+    "isCustom": false,
+    "swagger": {
+      "swagger": "2.0",
+      "info": {
+        "title": "Send Announcement Email",
+        "version": "2015-02-01-preview"
+      },
+      "host": "asia-001.azure-apim.net",
+      "schemes": [
+        "https"
+      ],
+      "consumes": [
+        "application/json"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "paths": {
+        "/{connectionId}/triggers/manual/run": {
+          "post": {
+            "operationId": "Run",
+            "description": "Runs a logic flow trigger.",
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "type": "string",
+                "x-ms-visibility": "internal"
+              },
+              {
+                "name": "input",
+                "description": "The trigger's input",
+                "in": "body",
+                "required": true,
+                "schema": {
+                  "$ref": "#/definitions/ManualTriggerInput"
+                }
+              },
+              {
+                "name": "api-version",
+                "description": "The api version",
+                "in": "query",
+                "required": true,
+                "default": "2015-02-01-preview",
+                "x-ms-visibility": "internal",
+                "type": "string"
+              }
+            ],
+            "responses": {
+              "202": {
+                "description": "Accepted"
+              }
+            }
+          }
+        }
+      },
+      "definitions": {
+        "ManualTriggerInput": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "title": "AnnouncementId",
+              "description": "GUID of the cr133_announcement row to send",
+              "x-ms-dynamically-added": true,
+              "x-ms-content-hint": "TEXT"
+            },
+            "text_1": {
+              "type": "string",
+              "title": "Mode",
+              "description": "Either 'Test' or 'Send'",
+              "x-ms-dynamically-added": true,
+              "x-ms-content-hint": "TEXT"
+            },
+            "text_2": {
+              "type": "string",
+              "title": "RecipientOverride",
+              "description": "Optional. Only populated when Mode is 'Test'.",
+              "x-ms-dynamically-added": true,
+              "x-ms-content-hint": "TEXT"
+            }
+          },
+          "required": [
+            "text",
+            "text_1"
+          ]
+        }
+      },
+      "basePath": "/apim/logicflows"
+    }
+  }
+}

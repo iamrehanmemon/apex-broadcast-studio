@@ -10,7 +10,19 @@
   "buildEntryPoint": "index.html",
   "localAppUrl": "http://localhost:3000",
   "logoPath": "Default",
-  "connectionReferences": {},
+  "connectionReferences": {
+    "3ef9c23d-2df8-4705-a6bf-444dd6b7d011": {
+      "id": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+      "displayName": "Logic flows",
+      "dataSources": [
+        "sendannouncementemail"
+      ],
+      "workflowDetails": {
+        "workflowDisplayName": "Send Announcement Email",
+        "workflowName": "7962d6ff-deb1-455a-a084-cd700631d91b"
+      }
+    }
+  },
   "databaseReferences": {
     "default.cds": {
       "dataSources": {

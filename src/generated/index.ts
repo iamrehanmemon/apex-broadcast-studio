@@ -7,7 +7,9 @@
 export * as CommonModels from './models/CommonModels';
 export * as Cr133_announcementsModel from './models/Cr133_announcementsModel';
 export * as Cr133_announcementtemplatesModel from './models/Cr133_announcementtemplatesModel';
+export * as SendAnnouncementEmailModel from './models/SendAnnouncementEmailModel';
 
 // Services
 export * from './services/Cr133_announcementsService';
 export * from './services/Cr133_announcementtemplatesService';
+export * from './services/SendAnnouncementEmailService';

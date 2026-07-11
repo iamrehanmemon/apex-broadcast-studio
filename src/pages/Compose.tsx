@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Trash2, Upload, Monitor, Smartphone } from 'lucide-react';
+import { getContext } from '@microsoft/power-apps/app';
 import { Cr133_announcementtemplatesService } from '../generated/services/Cr133_announcementtemplatesService';
 import { Cr133_announcementsService } from '../generated/services/Cr133_announcementsService';
+import { SendAnnouncementEmailService } from '../generated/services/SendAnnouncementEmailService';
 import {
   parseFieldSchema,
   buildInitialValues,
@@ -49,7 +51,11 @@ export default function Compose({ templateId }: Props) {
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
 
   const [announcementId, setAnnouncementId] = useState<string | null>(null);
+  const [recipients, setRecipients] = useState(DEFAULT_RECIPIENTS);
   const [saving, setSaving] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
+  const [sendingReal, setSendingReal] = useState(false);
+  const [confirmingSend, setConfirmingSend] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -57,6 +63,8 @@ export default function Compose({ templateId }: Props) {
     setLoading(true);
     setAnnouncementId(null);
     setImageFile(null);
+    setRecipients(DEFAULT_RECIPIENTS);
+    setConfirmingSend(false);
     (async () => {
       const result = await Cr133_announcementtemplatesService.get(templateId, {
         select: ['cr133_name', 'cr133_fieldschema', 'cr133_layout', 'cr133_requiresimage'],
@@ -100,44 +108,81 @@ export default function Compose({ templateId }: Props) {
     }
   };
 
+  /** Creates/updates the Announcement row and returns its ID. Shared by Save Draft and the Test/Send actions, which must persist the latest content before invoking the flow. */
+  const persistDraft = async (): Promise<string> => {
+    const renderedHtml = renderEmailHtml({ layout, fields, values, subjectEn, subjectAr, templateName, imageSrc: imagePreviewUrl });
+    const record = {
+      cr133_name: subjectEn || templateName,
+      cr133_subjecten: subjectEn,
+      cr133_subjectar: subjectAr,
+      cr133_bodyfieldsjson: JSON.stringify(values),
+      cr133_renderedhtml: renderedHtml,
+      cr133_recipients: recipients,
+      'cr133_Template@odata.bind': `/cr133_announcementtemplates(${templateId})`,
+    };
+
+    let id = announcementId;
+    if (id) {
+      const result = await Cr133_announcementsService.update(id, record);
+      if (result.error) throw new Error(result.error.message);
+    } else {
+      // ownerid/owneridtype/statecode are server-defaulted on create; the generated
+      // Base type marks them required even though the API doesn't need them here.
+      const result = await Cr133_announcementsService.create({ ...record, cr133_status: 100000000 } as any);
+      if (result.error) throw new Error(result.error.message);
+      id = result.data.cr133_announcementid;
+      setAnnouncementId(id);
+    }
+
+    if (imageFile && id) {
+      const uploadResult = await Cr133_announcementsService.upload(id, 'cr133_image', imageFile);
+      if (uploadResult.error) throw new Error(uploadResult.error.message);
+    }
+
+    return id;
+  };
+
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      const renderedHtml = renderEmailHtml({ layout, fields, values, subjectEn, subjectAr, templateName, imageSrc: imagePreviewUrl });
-      const record = {
-        cr133_name: subjectEn || templateName,
-        cr133_subjecten: subjectEn,
-        cr133_subjectar: subjectAr,
-        cr133_bodyfieldsjson: JSON.stringify(values),
-        cr133_renderedhtml: renderedHtml,
-        cr133_status: 100000000 as const,
-        cr133_recipients: DEFAULT_RECIPIENTS,
-        'cr133_Template@odata.bind': `/cr133_announcementtemplates(${templateId})`,
-      };
-
-      let id = announcementId;
-      if (id) {
-        const result = await Cr133_announcementsService.update(id, record);
-        if (result.error) throw new Error(result.error.message);
-      } else {
-        // ownerid/owneridtype/statecode are server-defaulted on create; the generated
-        // Base type marks them required even though the API doesn't need them here.
-        const result = await Cr133_announcementsService.create(record as any);
-        if (result.error) throw new Error(result.error.message);
-        id = result.data.cr133_announcementid;
-        setAnnouncementId(id);
-      }
-
-      if (imageFile && id) {
-        const uploadResult = await Cr133_announcementsService.upload(id, 'cr133_image', imageFile);
-        if (uploadResult.error) throw new Error(uploadResult.error.message);
-      }
-
+      await persistDraft();
       setToast({ kind: 'success', message: 'Draft saved.' });
     } catch (e) {
       setToast({ kind: 'error', message: e instanceof Error ? e.message : 'Failed to save draft.' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSendTest = async () => {
+    setSendingTest(true);
+    try {
+      const id = await persistDraft();
+      const ctx = await getContext();
+      const testEmail = ctx.user.userPrincipalName;
+      if (!testEmail) throw new Error('Could not determine your email address.');
+      const result = await SendAnnouncementEmailService.Run({ text: id, text_1: 'Test', text_2: testEmail });
+      if (result.error) throw new Error(result.error.message);
+      setToast({ kind: 'success', message: `Test email sent to ${testEmail}.` });
+    } catch (e) {
+      setToast({ kind: 'error', message: e instanceof Error ? e.message : 'Failed to send test email.' });
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
+  const handleSendReal = async () => {
+    setSendingReal(true);
+    try {
+      const id = await persistDraft();
+      const result = await SendAnnouncementEmailService.Run({ text: id, text_1: 'Send' });
+      if (result.error) throw new Error(result.error.message);
+      setToast({ kind: 'success', message: `Sent to ${recipients}.` });
+    } catch (e) {
+      setToast({ kind: 'error', message: e instanceof Error ? e.message : 'Failed to send.' });
+    } finally {
+      setSendingReal(false);
+      setConfirmingSend(false);
     }
   };
 
@@ -222,10 +267,27 @@ export default function Compose({ templateId }: Props) {
               options={[{ v: 'desktop', l: <Monitor size={14} /> }, { v: 'mobile', l: <Smartphone size={14} /> }]}
             />
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input
+              value={recipients}
+              onChange={(e) => setRecipients(e.target.value)}
+              placeholder="Distribution list address"
+              style={{ width: 200, fontSize: '0.8rem' }}
+              title="Recipient for the real send"
+            />
             <button className="btn-ghost" onClick={handleSaveDraft} disabled={saving}>{saving ? 'Saving…' : 'Save Draft'}</button>
-            <button className="btn-ghost" disabled title="Connect the Power Automate flow (Phase 3) to enable">Send Test to Me</button>
-            <button className="btn-accent" disabled title="Connect the Power Automate flow (Phase 3) to enable">Send to Distribution List</button>
+            <button className="btn-ghost" onClick={handleSendTest} disabled={sendingTest}>{sendingTest ? 'Sending…' : 'Send Test to Me'}</button>
+            {!confirmingSend ? (
+              <button className="btn-accent" onClick={() => setConfirmingSend(true)} disabled={sendingReal || !recipients}>
+                Send to Distribution List
+              </button>
+            ) : (
+              <>
+                <span style={{ fontSize: '0.78rem', color: 'var(--ash)' }}>Send to {recipients}?</span>
+                <button className="btn-ghost" onClick={() => setConfirmingSend(false)} disabled={sendingReal}>Cancel</button>
+                <button className="btn-accent" onClick={handleSendReal} disabled={sendingReal}>{sendingReal ? 'Sending…' : 'Confirm Send'}</button>
+              </>
+            )}
           </div>
         </div>
 
