@@ -162,7 +162,8 @@
             "Condolence",
             "Stats",
             "Event",
-            "Bulletins"
+            "Bulletins",
+            "Gallery"
           ],
           "x-ms-enum-values": [
             100000000,
@@ -172,9 +173,11 @@
             100000004,
             100000005,
             100000006,
-            100000007
+            100000007,
+            100000008
           ],
           "Color": [
+            null,
             null,
             null,
             null,

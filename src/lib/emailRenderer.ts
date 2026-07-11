@@ -1,4 +1,10 @@
-export type FieldType = 'text' | 'textarea' | 'image' | 'bullets' | 'metrics' | 'cta';
+export type FieldType = 'text' | 'textarea' | 'image' | 'bullets' | 'metrics' | 'cta' | 'gallery';
+
+export interface GalleryItem {
+  en: string;
+  ar: string;
+  dataUrl?: string;
+}
 
 export interface FieldDef {
   key: string;
@@ -21,7 +27,8 @@ export type LayoutKey =
   | 'condolence'
   | 'stats'
   | 'event'
-  | 'bulletins';
+  | 'bulletins'
+  | 'gallery';
 
 export type FieldValues = Record<string, any>;
 
@@ -58,6 +65,8 @@ export function initialValueFor(field: FieldDef): any {
       return { en: field.exampleEn ?? '', ar: field.exampleAr ?? '', url: field.exampleUrl ?? '' };
     case 'image':
       return null;
+    case 'gallery':
+      return field.exampleItems?.length ? field.exampleItems.map((i) => ({ en: i.en, ar: i.ar })) : [{ en: '', ar: '' }, { en: '', ar: '' }, { en: '', ar: '' }];
     default:
       return { en: field.exampleEn ?? '', ar: field.exampleAr ?? '' };
   }
@@ -109,7 +118,9 @@ function eyebrow(text: string, rtl: boolean): string {
 function cta(values: FieldValues, lang: 'en' | 'ar', rtl: boolean): string {
   const c = values.cta;
   if (!c || !c[lang]) return '';
-  return `<a href="${esc(c.url || '#')}" style="display:inline-block;background:${GOLD};color:${BLACK};text-decoration:none;padding:14px 28px;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:0.08em;margin-top:8px;font-family:'Barlow Condensed',Arial,sans-serif;">${esc(c[lang])} ${rtl ? '←' : '→'}</a>`;
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:14px;"><tr><td style="background:${GOLD};border-radius:0;">` +
+    `<a href="${esc(c.url || '#')}" style="display:block;color:${BLACK};text-decoration:none;padding:14px 28px;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:0.08em;font-family:'Barlow Condensed',Arial,sans-serif;white-space:nowrap;">${esc(c[lang])}&nbsp;${rtl ? '&larr;' : '&rarr;'}</a>` +
+    `</td></tr></table>`;
 }
 
 function bulletList(items: Array<{ en: string; ar: string }>, lang: 'en' | 'ar', rtl: boolean): string {
@@ -118,9 +129,9 @@ function bulletList(items: Array<{ en: string; ar: string }>, lang: 'en' | 'ar',
     .filter((b) => b[lang])
     .map(
       (b) =>
-        `<div style="display:flex;gap:10px;align-items:flex-start;flex-direction:${rtl ? 'row-reverse' : 'row'};margin-bottom:9px;">` +
+        `<div style="display:flex;gap:12px;align-items:flex-start;flex-direction:${rtl ? 'row-reverse' : 'row'};margin-bottom:16px;">` +
         `<span style="flex-shrink:0;width:18px;height:18px;background:${GOLD};color:${BLACK};display:inline-block;text-align:center;line-height:18px;font-size:12px;font-weight:700;">&#10003;</span>` +
-        `<span style="font-size:14.5px;color:${WHITE};line-height:1.5;">${esc(b[lang])}</span>` +
+        `<span style="font-size:14.5px;color:${WHITE};line-height:1.6;">${esc(b[lang])}</span>` +
         `</div>`
     )
     .join('');
@@ -145,6 +156,27 @@ function metricsGrid(items: Array<{ en: string; ar: string; num: string; chg: st
   });
   const trs = chunked.map((row) => `<tr>${row.map((i) => cellsHtml[i]).join('')}</tr>`).join('');
   return `<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">${trs}</table>`;
+}
+
+function galleryGrid(items: Array<{ en: string; ar: string; dataUrl?: string }>, lang: 'en' | 'ar', rtl: boolean): string {
+  const shown = items.filter((i) => i[lang] || i.dataUrl);
+  if (!shown.length) return '';
+  const cols = shown.length >= 3 ? 3 : shown.length;
+  const cellsHtml = shown.map((it) => {
+    const photo = it.dataUrl
+      ? `<img src="${it.dataUrl}" alt="" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block;border:2px solid ${GOLD};" />`
+      : `<div style="width:100%;aspect-ratio:1/1;background:${CHARCOAL};border:1px solid #333;"></div>`;
+    return (
+      `<td style="width:${100 / cols}%;padding:8px;vertical-align:top;text-align:center;">` +
+      photo +
+      `<div style="margin-top:8px;font-size:13px;font-weight:700;color:${WHITE};font-family:'Barlow Condensed',Arial,sans-serif;text-transform:uppercase;">${esc(it[lang])}</div>` +
+      `</td>`
+    );
+  });
+  const chunked: string[][] = [];
+  for (let i = 0; i < cellsHtml.length; i += cols) chunked.push(cellsHtml.slice(i, i + cols));
+  const trs = chunked.map((row) => `<tr>${row.join('')}</tr>`).join('');
+  return `<table role="presentation" style="width:100%;border-collapse:collapse;margin-bottom:16px;direction:${rtl ? 'rtl' : 'ltr'};">${trs}</table>`;
 }
 
 function bulletSections(fields: FieldDef[], values: FieldValues, lang: 'en' | 'ar', rtl: boolean, withHeads: boolean): string {
@@ -294,6 +326,19 @@ function renderBody(layout: LayoutKey, fields: FieldDef[], values: FieldValues, 
         : '') +
         title(g('title'), rtl) +
         bulletSections(fields, values, lang, rtl, true) +
+        cta(values, lang, rtl),
+      lang,
+      rtl
+    );
+  }
+
+  if (layout === 'gallery') {
+    const galleryField = fields.find((f) => f.type === 'gallery');
+    return langBlock(
+      eyebrow(g('eyebrow'), rtl) +
+        title(g('title'), rtl) +
+        para(g('intro'), rtl) +
+        (galleryField ? galleryGrid(values[galleryField.key] ?? [], lang, rtl) : '') +
         cta(values, lang, rtl),
       lang,
       rtl

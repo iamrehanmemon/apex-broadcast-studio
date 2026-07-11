@@ -11,7 +11,7 @@
   "localAppUrl": "http://localhost:3000",
   "logoPath": "Default",
   "connectionReferences": {
-    "3ef9c23d-2df8-4705-a6bf-444dd6b7d011": {
+    "5cc82a66-1b6a-4c68-a9e0-d404f1b32d3d": {
       "id": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
       "displayName": "Logic flows",
       "dataSources": [

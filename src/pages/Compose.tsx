@@ -31,6 +31,7 @@ const LAYOUT_NAME: Record<number, LayoutKey> = {
   100000005: 'stats',
   100000006: 'event',
   100000007: 'bulletins',
+  100000008: 'gallery',
 };
 
 export default function Compose({ templateId }: Props) {
@@ -198,7 +199,7 @@ export default function Compose({ templateId }: Props) {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px, 420px) 1fr', minHeight: '100vh' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(400px, 480px) 1fr', minHeight: '100vh' }}>
       {/* Form column */}
       <div style={{ borderRight: '1px solid var(--border-dim)', background: 'var(--dark-iron)' }}>
         <div style={{ padding: '24px 26px', borderBottom: '1px solid var(--border-dim)' }}>
@@ -363,6 +364,10 @@ function FieldEditor({
   showEn: boolean;
   showAr: boolean;
 }) {
+  // Image fields are handled by the single dedicated photo dropzone above (gated on cr133_requiresimage),
+  // not per-field here — rendering one would produce a confusing duplicate "Photo" text input.
+  if (field.type === 'image') return null;
+
   if (field.type === 'bullets') {
     const items: Array<{ en: string; ar: string }> = value ?? [];
     return (
@@ -396,6 +401,30 @@ function FieldEditor({
           ))}
           <button className="btn-ghost" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={() => onChange([...items, { en: '', ar: '' }])}>
             <Plus size={14} /> Add Point
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (field.type === 'gallery') {
+    const items: Array<{ en: string; ar: string; dataUrl?: string }> = value ?? [];
+    return (
+      <div>
+        <label>{field.labelEn}</label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {items.map((item, i) => (
+            <GalleryItemEditor
+              key={i}
+              item={item}
+              showEn={showEn}
+              showAr={showAr}
+              onChange={(next) => onChange(items.map((x, idx) => (idx === i ? next : x)))}
+              onRemove={items.length > 1 ? () => onChange(items.filter((_, idx) => idx !== i)) : undefined}
+            />
+          ))}
+          <button className="btn-ghost" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={() => onChange([...items, { en: '', ar: '' }])}>
+            <Plus size={14} /> Add Photo
           </button>
         </div>
       </div>
@@ -459,26 +488,76 @@ function FieldEditor({
     );
   }
 
-  // text / textarea
+  // text / textarea — textareas stack full-width (side-by-side gets cramped for long content),
+  // single-line text fields stay side-by-side when both languages are shown.
   const v = value ?? { en: '', ar: '' };
-  const Input = field.type === 'textarea' ? 'textarea' : 'input';
+  const isTextarea = field.type === 'textarea';
+  const Input = isTextarea ? 'textarea' : 'input';
+  const columns = isTextarea ? '1fr' : showEn && showAr ? '1fr 1fr' : '1fr';
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: showEn && showAr ? '1fr 1fr' : '1fr', gap: '1rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: columns, gap: '1rem' }}>
       {showEn && (
         <div>
           <label>{field.labelEn}</label>
-          <Input style={{ width: '100%', minHeight: field.type === 'textarea' ? 90 : undefined }} value={v.en} onChange={(e: any) => onChange({ ...v, en: e.target.value })} />
+          <Input
+            style={{ width: '100%', minHeight: isTextarea ? 130 : undefined, resize: isTextarea ? 'vertical' : undefined }}
+            value={v.en}
+            onChange={(e: any) => onChange({ ...v, en: e.target.value })}
+          />
         </div>
       )}
       {showAr && (
         <div>
           <label>{field.labelAr}</label>
           <Input
-            style={{ width: '100%', minHeight: field.type === 'textarea' ? 90 : undefined, direction: 'rtl', fontFamily: 'var(--font-ar)' }}
+            style={{ width: '100%', minHeight: isTextarea ? 130 : undefined, resize: isTextarea ? 'vertical' : undefined, direction: 'rtl', fontFamily: 'var(--font-ar)' }}
             value={v.ar}
             onChange={(e: any) => onChange({ ...v, ar: e.target.value })}
           />
         </div>
+      )}
+    </div>
+  );
+}
+
+function GalleryItemEditor({
+  item,
+  showEn,
+  showAr,
+  onChange,
+  onRemove,
+}: {
+  item: { en: string; ar: string; dataUrl?: string };
+  showEn: boolean;
+  showAr: boolean;
+  onChange: (v: { en: string; ar: string; dataUrl?: string }) => void;
+  onRemove?: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handlePick = async (file: File) => {
+    const { dataUrl } = await compressImage(file, 400, 0.7);
+    onChange({ ...item, dataUrl });
+  };
+
+  return (
+    <div style={{ border: '1px solid var(--border-dim)', padding: 9, position: 'relative', display: 'flex', gap: 10 }}>
+      <div onClick={() => fileRef.current?.click()} style={{ width: 64, height: 64, flexShrink: 0, background: 'var(--charcoal)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {item.dataUrl ? (
+          <img src={item.dataUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <Upload size={16} color="var(--steel)" />
+        )}
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePick(f); }} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {showEn && <input placeholder="Name / Caption (EN)" value={item.en} onChange={(e) => onChange({ ...item, en: e.target.value })} />}
+        {showAr && <input placeholder="الاسم / التسمية" style={{ direction: 'rtl', fontFamily: 'var(--font-ar)' }} value={item.ar} onChange={(e) => onChange({ ...item, ar: e.target.value })} />}
+      </div>
+      {onRemove && (
+        <button className="btn-plain" onClick={onRemove} style={{ position: 'absolute', top: 4, right: 4, padding: 4 }}>
+          <Trash2 size={13} />
+        </button>
       )}
     </div>
   );

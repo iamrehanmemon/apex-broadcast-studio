@@ -29,7 +29,8 @@ export const Cr133_announcementtemplatescr133_layout = {
   100000004: 'Condolence',
   100000005: 'Stats',
   100000006: 'Event',
-  100000007: 'Bulletins'
+  100000007: 'Bulletins',
+  100000008: 'Gallery'
 } as const;
 export type Cr133_announcementtemplatescr133_layout = keyof typeof Cr133_announcementtemplatescr133_layout;
 export const Cr133_announcementtemplatesstatecode = {
