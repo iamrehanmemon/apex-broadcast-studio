@@ -39,7 +39,10 @@
             "Awards",
             "Employee of the Month",
             "Training Programs",
-            "Initiatives"
+            "Initiatives",
+            "Recognition",
+            "Events & Social",
+            "Operations Updates"
           ],
           "x-ms-enum-values": [
             100000000,
@@ -54,9 +57,15 @@
             100000009,
             100000010,
             100000011,
-            100000012
+            100000012,
+            100000013,
+            100000014,
+            100000015
           ],
           "Color": [
+            null,
+            null,
+            null,
             null,
             null,
             null,

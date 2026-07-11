@@ -15,7 +15,10 @@ export const Cr133_announcementtemplatescr133_category = {
   100000009: 'Awards',
   100000010: 'Employee of the Month',
   100000011: 'Training Programs',
-  100000012: 'Initiatives'
+  100000012: 'Initiatives',
+  100000013: 'Recognition',
+  100000014: 'Events & Social',
+  100000015: 'Operations Updates'
 } as const;
 export type Cr133_announcementtemplatescr133_category = keyof typeof Cr133_announcementtemplatescr133_category;
 export const Cr133_announcementtemplatescr133_layout = {

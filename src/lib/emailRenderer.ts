@@ -168,8 +168,11 @@ function renderBody(layout: LayoutKey, fields: FieldDef[], values: FieldValues, 
   const g = (key: string) => field(values, key)[lang] ?? '';
 
   if (layout === 'message') {
+    const hero = values.__imageSrc
+      ? `<img src="${values.__imageSrc}" alt="" style="width:100%;display:block;aspect-ratio:640/300;object-fit:cover;margin-bottom:18px;" />`
+      : '';
     return langBlock(
-      eyebrow(g('eyebrow'), rtl) + title(g('title'), rtl) + para(g('body'), rtl) + bulletSections(fields, values, lang, rtl, false) + cta(values, lang, rtl),
+      hero + eyebrow(g('eyebrow'), rtl) + title(g('title'), rtl) + para(g('body'), rtl) + bulletSections(fields, values, lang, rtl, false) + cta(values, lang, rtl),
       lang,
       rtl
     );

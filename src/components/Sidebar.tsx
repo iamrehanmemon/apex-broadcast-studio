@@ -1,6 +1,6 @@
 import {
   TrendingUp, BookOpen, ShieldCheck, Cake, Baby, Flower2, Users, Trophy,
-  Newspaper, Award, Star, GraduationCap, Lightbulb, Clock, type LucideIcon,
+  Newspaper, Award, Star, GraduationCap, Lightbulb, Clock, Sparkles, PartyPopper, Rocket, type LucideIcon,
 } from 'lucide-react';
 import { Cr133_announcementtemplatescr133_category } from '../generated/models/Cr133_announcementtemplatesModel';
 import type { Cr133_announcementtemplates } from '../generated/models/Cr133_announcementtemplatesModel';
@@ -29,6 +29,9 @@ const CATEGORY_ICON: Record<number, LucideIcon> = {
   100000010: Star,
   100000011: GraduationCap,
   100000012: Lightbulb,
+  100000013: Sparkles,
+  100000014: PartyPopper,
+  100000015: Rocket,
 };
 
 export default function Sidebar({ templates, loading, error, selectedId, view, onSelect, onHistory }: Props) {
