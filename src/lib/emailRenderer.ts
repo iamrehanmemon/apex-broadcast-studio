@@ -320,7 +320,7 @@ export function renderEmailHtml({ layout, fields, values, subjectEn, subjectAr, 
 
   return `<div style="background:${BLACK};max-width:640px;margin:0 auto;">
   <div style="background:${DARK_IRON};padding:20px 30px;display:flex;align-items:center;justify-content:space-between;">
-    <span style="font-family:'Barlow Condensed',Arial,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:${WHITE};font-size:15px;">Broadcast Studio</span>
+    <span style="font-family:'Barlow Condensed',Arial,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:${WHITE};font-size:15px;">APEX</span>
     <span style="background:rgba(255,192,0,0.12);color:${GOLD};font-size:10.5px;font-weight:700;padding:5px 10px;text-transform:uppercase;letter-spacing:0.05em;">${esc(templateName)}</span>
   </div>
   ${subjectEn || subjectAr ? '' : ''}

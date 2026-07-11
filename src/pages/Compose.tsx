@@ -44,6 +44,7 @@ export default function Compose({ templateId }: Props) {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | undefined>(undefined);
 
+  const [previewHeight, setPreviewHeight] = useState(620);
   const [lang, setLang] = useState<Lang>('both');
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
 
@@ -249,7 +250,15 @@ export default function Compose({ templateId }: Props) {
               <span>{device}</span>
             </div>
             <div style={{ background: 'var(--black)', border: '1px solid var(--border-dim)' }}>
-              <iframe title="preview" srcDoc={previewHtml} style={{ width: '100%', height: 620, border: 'none', display: 'block' }} />
+              <iframe
+                title="preview"
+                srcDoc={previewHtml}
+                style={{ width: '100%', height: previewHeight, border: 'none', display: 'block' }}
+                onLoad={(e) => {
+                  const doc = (e.target as HTMLIFrameElement).contentDocument;
+                  if (doc) setPreviewHeight(Math.max(320, doc.documentElement.scrollHeight));
+                }}
+              />
             </div>
           </div>
         </div>
