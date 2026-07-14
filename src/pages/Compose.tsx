@@ -536,7 +536,7 @@ function GalleryItemEditor({
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handlePick = async (file: File) => {
-    const { dataUrl } = await compressImage(file, 400, 0.7);
+    const { dataUrl } = await compressImage(file, 320, 0.6);
     onChange({ ...item, dataUrl });
   };
 
