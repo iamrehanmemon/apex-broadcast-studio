@@ -12,7 +12,9 @@ import {
   type FieldValues,
   type LayoutKey,
 } from '../lib/emailRenderer';
-import { compressImage, placeholderImage } from '../lib/imageUtils';
+import { decodeImageToDataUrl, getCroppedImage, placeholderImage } from '../lib/imageUtils';
+import ImageCropModal from '../components/ImageCropModal';
+import type { Area } from 'react-easy-crop';
 import { DEFAULT_RECIPIENTS } from '../config';
 
 interface Props {
@@ -46,6 +48,7 @@ export default function Compose({ templateId }: Props) {
   const [values, setValues] = useState<FieldValues>({});
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | undefined>(undefined);
+  const [cropSource, setCropSource] = useState<string | null>(null);
 
   const [previewHeight, setPreviewHeight] = useState(620);
   const [lang, setLang] = useState<Lang>('both');
@@ -99,13 +102,28 @@ export default function Compose({ templateId }: Props) {
 
   const setValue = (key: string, val: any) => setValues((prev) => ({ ...prev, [key]: val }));
 
+  const cropAspect = layout === 'memoriam' ? 1 : 16 / 9;
+
   const handleImagePick = async (file: File) => {
     try {
-      const { file: compressed, dataUrl } = await compressImage(file);
-      setImageFile(compressed);
-      setImagePreviewUrl(dataUrl);
+      const dataUrl = await decodeImageToDataUrl(file);
+      setCropSource(dataUrl);
     } catch (e) {
       setToast({ kind: 'error', message: e instanceof Error ? e.message : 'Could not process that image.' });
+    }
+  };
+
+  const handleCropConfirm = async (cropPixels: Area) => {
+    if (!cropSource) return;
+    try {
+      const [outW, outH] = cropAspect === 1 ? [480, 480] : [800, 450];
+      const { file: cropped, dataUrl } = await getCroppedImage(cropSource, cropPixels, outW, outH);
+      setImageFile(cropped);
+      setImagePreviewUrl(dataUrl);
+    } catch (e) {
+      setToast({ kind: 'error', message: e instanceof Error ? e.message : 'Could not crop that image.' });
+    } finally {
+      setCropSource(null);
     }
   };
 
@@ -199,7 +217,17 @@ export default function Compose({ templateId }: Props) {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(400px, 480px) 1fr', minHeight: '100vh' }}>
+    <>
+      {cropSource && (
+        <ImageCropModal
+          imageSrc={cropSource}
+          aspect={cropAspect}
+          cropShape={layout === 'memoriam' ? 'round' : 'rect'}
+          onCancel={() => setCropSource(null)}
+          onConfirm={handleCropConfirm}
+        />
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(400px, 480px) 1fr', minHeight: '100vh' }}>
       {/* Form column */}
       <div style={{ borderRight: '1px solid var(--border-dim)', background: 'var(--dark-iron)' }}>
         <div style={{ padding: '24px 26px', borderBottom: '1px solid var(--border-dim)' }}>
@@ -326,7 +354,8 @@ export default function Compose({ templateId }: Props) {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -534,18 +563,34 @@ function GalleryItemEditor({
   onRemove?: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [cropSource, setCropSource] = useState<string | null>(null);
 
   const handlePick = async (file: File) => {
     try {
-      const { dataUrl } = await compressImage(file, 320, 0.6);
-      onChange({ ...item, dataUrl });
+      const dataUrl = await decodeImageToDataUrl(file);
+      setCropSource(dataUrl);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Could not process that image.');
     }
   };
 
+  const handleCropConfirm = async (cropPixels: Area) => {
+    if (!cropSource) return;
+    try {
+      const { dataUrl } = await getCroppedImage(cropSource, cropPixels, 400, 400);
+      onChange({ ...item, dataUrl });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not crop that image.');
+    } finally {
+      setCropSource(null);
+    }
+  };
+
   return (
     <div style={{ border: '1px solid var(--border-dim)', padding: 9, position: 'relative', display: 'flex', gap: 10 }}>
+      {cropSource && (
+        <ImageCropModal imageSrc={cropSource} aspect={1} cropShape="rect" onCancel={() => setCropSource(null)} onConfirm={handleCropConfirm} />
+      )}
       <div onClick={() => fileRef.current?.click()} style={{ width: 64, height: 64, flexShrink: 0, background: 'var(--charcoal)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {item.dataUrl ? (
           <img src={item.dataUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

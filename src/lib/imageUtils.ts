@@ -15,6 +15,13 @@ export interface CompressedImage {
   dataUrl: string;
 }
 
+export interface CropPixels {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 function isHeic(file: File): boolean {
   const name = file.name.toLowerCase();
   return file.type === 'image/heic' || file.type === 'image/heif' || name.endsWith('.heic') || name.endsWith('.heif');
@@ -30,30 +37,31 @@ function readAsDataUrl(blob: Blob): Promise<string> {
 }
 
 /**
- * Resizes/compresses an image client-side before upload, so a raw phone photo
- * doesn't bloat the Dataverse row or the outgoing email (ceiling: ~1MB inline image).
+ * Decodes a picked file into a plain data: URI, ready to feed into an <img> or a cropper —
+ * doesn't resize/compress yet, just handles format conversion.
  *
  * iPhones save camera photos as HEIC/HEIF by default, which <img>/canvas can't decode
  * in Chromium-based browsers (only Safari supports it natively) — that silent decode
  * failure was surfacing as "could not process that image". heic2any transcodes to JPEG
- * first so the rest of the pipeline (canvas resize/compress) works the same as any photo.
+ * first so the rest of the pipeline works the same as any photo.
  *
- * Loads the source through a data: URI (FileReader) rather than a blob: object URL —
- * this app runs inside a sandboxed third-party iframe (the Power Apps host), and both
- * Safari (ITP) and Brave (Shields) were found to block blob: URLs in that context,
- * making every upload fail with an onerror regardless of file type. data: URIs aren't
- * subject to that restriction.
+ * Returns a data: URI rather than a blob: object URL — this app runs inside a sandboxed
+ * third-party iframe (the Power Apps host), and both Safari (ITP) and Brave (Shields) were
+ * found to block blob: URLs in that context, making every upload fail regardless of file
+ * type. data: URIs aren't subject to that restriction.
  */
-export async function compressImage(file: File, maxWidth = 800, quality = 0.7): Promise<CompressedImage> {
+export async function decodeImageToDataUrl(file: File): Promise<string> {
   let source: Blob = file;
   if (isHeic(file)) {
     const heic2any = (await import('heic2any')).default;
-    const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality });
+    const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
     source = Array.isArray(converted) ? converted[0] : converted;
   }
+  return readAsDataUrl(source);
+}
 
-  const sourceDataUrl = await readAsDataUrl(source);
-
+/** Resizes/compresses an already-decoded image (no cropping) — used where a user-adjustable crop isn't offered. */
+export function compressImage(dataUrl: string, maxWidth = 800, quality = 0.7): Promise<CompressedImage> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -67,22 +75,53 @@ export async function compressImage(file: File, maxWidth = 800, quality = 0.7): 
         return;
       }
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', quality);
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error('Image compression failed'));
-            return;
-          }
-          resolve({ file: new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }), dataUrl });
-        },
-        'image/jpeg',
-        quality
-      );
+      finishCanvas(canvas, quality).then(resolve, reject);
     };
-    img.onerror = () => {
-      reject(new Error(`Could not decode "${file.name}" — try a JPG or PNG.`));
+    img.onerror = () => reject(new Error('Could not decode that image — try a JPG or PNG.'));
+    img.src = dataUrl;
+  });
+}
+
+/** Draws the user-selected crop region (in source-image pixel coordinates, from react-easy-crop's onCropComplete) onto a canvas at the target output size. */
+export function getCroppedImage(
+  sourceDataUrl: string,
+  crop: CropPixels,
+  outputWidth: number,
+  outputHeight: number,
+  quality = 0.75
+): Promise<CompressedImage> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = outputWidth;
+      canvas.height = outputHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas not supported'));
+        return;
+      }
+      ctx.drawImage(img, crop.x, crop.y, crop.width, crop.height, 0, 0, outputWidth, outputHeight);
+      finishCanvas(canvas, quality).then(resolve, reject);
     };
+    img.onerror = () => reject(new Error('Could not crop that image.'));
     img.src = sourceDataUrl;
+  });
+}
+
+function finishCanvas(canvas: HTMLCanvasElement, quality: number): Promise<CompressedImage> {
+  return new Promise((resolve, reject) => {
+    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error('Image processing failed'));
+          return;
+        }
+        resolve({ file: new File([blob], 'photo.jpg', { type: 'image/jpeg' }), dataUrl });
+      },
+      'image/jpeg',
+      quality
+    );
   });
 }
