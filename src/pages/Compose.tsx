@@ -104,8 +104,8 @@ export default function Compose({ templateId }: Props) {
       const { file: compressed, dataUrl } = await compressImage(file);
       setImageFile(compressed);
       setImagePreviewUrl(dataUrl);
-    } catch {
-      setToast({ kind: 'error', message: 'Could not process that image.' });
+    } catch (e) {
+      setToast({ kind: 'error', message: e instanceof Error ? e.message : 'Could not process that image.' });
     }
   };
 
@@ -536,8 +536,12 @@ function GalleryItemEditor({
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handlePick = async (file: File) => {
-    const { dataUrl } = await compressImage(file, 320, 0.6);
-    onChange({ ...item, dataUrl });
+    try {
+      const { dataUrl } = await compressImage(file, 320, 0.6);
+      onChange({ ...item, dataUrl });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not process that image.');
+    }
   };
 
   return (

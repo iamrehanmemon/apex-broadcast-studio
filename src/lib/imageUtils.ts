@@ -15,14 +15,31 @@ export interface CompressedImage {
   dataUrl: string;
 }
 
+function isHeic(file: File): boolean {
+  const name = file.name.toLowerCase();
+  return file.type === 'image/heic' || file.type === 'image/heif' || name.endsWith('.heic') || name.endsWith('.heif');
+}
+
 /**
  * Resizes/compresses an image client-side before upload, so a raw phone photo
  * doesn't bloat the Dataverse row or the outgoing email (ceiling: ~1MB inline image).
+ *
+ * iPhones save camera photos as HEIC/HEIF by default, which <img>/canvas can't decode
+ * in Chromium-based browsers (only Safari supports it natively) — that silent decode
+ * failure was surfacing as "could not process that image". heic2any transcodes to JPEG
+ * first so the rest of the pipeline (canvas resize/compress) works the same as any photo.
  */
-export function compressImage(file: File, maxWidth = 800, quality = 0.7): Promise<CompressedImage> {
+export async function compressImage(file: File, maxWidth = 800, quality = 0.7): Promise<CompressedImage> {
+  let source: Blob = file;
+  if (isHeic(file)) {
+    const heic2any = (await import('heic2any')).default;
+    const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality });
+    source = Array.isArray(converted) ? converted[0] : converted;
+  }
+
   return new Promise((resolve, reject) => {
     const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
+    const objectUrl = URL.createObjectURL(source);
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
       const scale = Math.min(1, maxWidth / img.width);
@@ -50,7 +67,7 @@ export function compressImage(file: File, maxWidth = 800, quality = 0.7): Promis
     };
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      reject(new Error('Could not load image'));
+      reject(new Error(`Could not decode "${file.name}" — try a JPG or PNG.`));
     };
     img.src = objectUrl;
   });

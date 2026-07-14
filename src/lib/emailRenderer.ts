@@ -116,17 +116,22 @@ function eyebrow(text: string, rtl: boolean): string {
 }
 
 // Table-based "bulletproof button" — display:inline-block on <a> collapses in Outlook's
-// Word rendering engine, so we use the standard email-safe table pattern instead.
+// Word rendering engine, and Outlook frequently ignores padding set on the <a> itself, so
+// padding lives on the <td> instead. Table margin is also unreliable in Outlook, so the
+// top gap is a real spacer row rather than CSS margin.
 function cta(values: FieldValues, lang: 'en' | 'ar', rtl: boolean): string {
   const c = values.cta;
   if (!c || !c[lang]) return '';
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;"><tr><td style="background-color:${GOLD};">` +
-    `<a href="${esc(c.url || '#')}" style="display:inline-block;color:${BLACK};text-decoration:none;padding:16px 40px;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;font-family:'Barlow Condensed',Arial,sans-serif;white-space:nowrap;">${esc(c[lang])}&nbsp;&nbsp;${rtl ? '&larr;' : '&rarr;'}</a>` +
+  return `<div style="height:16px;line-height:16px;font-size:0;">&nbsp;</div>` +
+    `<table role="presentation" dir="${rtl ? 'rtl' : 'ltr'}" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:${GOLD};padding:16px 40px;">` +
+    `<a href="${esc(c.url || '#')}" style="display:block;color:${BLACK};text-decoration:none;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;font-family:'Barlow Condensed',Arial,sans-serif;white-space:nowrap;">${esc(c[lang])}&nbsp;&nbsp;${rtl ? '&larr;' : '&rarr;'}</a>` +
     `</td></tr></table>`;
 }
 
 // Table-based checklist — flexbox (gap/align-items) is silently ignored by Outlook desktop,
-// collapsing the checkbox and text together with no gap.
+// collapsing the checkbox and text together with no gap. Cell order stays constant
+// (checkbox, then text); the explicit dir attribute on the table does the RTL mirroring —
+// manually swapping cell order AND relying on inherited dir from the parent double-flips it.
 function bulletList(items: Array<{ en: string; ar: string }>, lang: 'en' | 'ar', rtl: boolean): string {
   if (!items?.length) return '';
   const rows = items
@@ -134,10 +139,10 @@ function bulletList(items: Array<{ en: string; ar: string }>, lang: 'en' | 'ar',
     .map((b) => {
       const checkCell = `<td width="18" valign="top" style="width:18px;padding:0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="18" height="18" style="width:18px;height:18px;background-color:${GOLD};color:${BLACK};text-align:center;font-size:12px;font-weight:700;line-height:18px;">&#10003;</td></tr></table></td>`;
       const textCell = `<td valign="top" style="padding-${rtl ? 'right' : 'left'}:12px;font-size:14.5px;color:${WHITE};line-height:1.6;">${esc(b[lang])}</td>`;
-      return `<tr>${rtl ? textCell + checkCell : checkCell + textCell}</tr><tr><td colspan="2" style="height:14px;line-height:14px;font-size:0;">&nbsp;</td></tr>`;
+      return `<tr>${checkCell}${textCell}</tr><tr><td colspan="2" style="height:14px;line-height:14px;font-size:0;">&nbsp;</td></tr>`;
     })
     .join('');
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-bottom:6px;">${rows}</table>`;
+  return `<table role="presentation" dir="${rtl ? 'rtl' : 'ltr'}" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-bottom:6px;">${rows}</table>`;
 }
 
 function metricsGrid(items: Array<{ en: string; ar: string; num: string; chg: string }>, lang: 'en' | 'ar', rtl: boolean): string {
@@ -299,12 +304,12 @@ function renderBody(layout: LayoutKey, fields: FieldDef[], values: FieldValues, 
       .map(([k, le, la]) => {
         const labelCell = `<td width="90" valign="top" style="width:90px;font-size:10.5px;color:${GOLD};font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:0 0 8px;">${rtl ? la : le}</td>`;
         const valueCell = `<td valign="top" style="font-size:14.5px;color:${WHITE};font-weight:600;padding:0 0 8px;">${esc(g(k))}</td>`;
-        return `<tr>${rtl ? valueCell + labelCell : labelCell + valueCell}</tr>`;
+        return `<tr>${labelCell}${valueCell}</tr>`;
       })
       .join('');
     return langBlock(
       title(g('title'), rtl) +
-        (rows.length ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;border:1px solid #333;padding:16px 18px;margin-bottom:16px;">${rowsHtml}</table>` : '') +
+        (rows.length ? `<table role="presentation" dir="${rtl ? 'rtl' : 'ltr'}" cellpadding="0" cellspacing="0" border="0" style="width:100%;border:1px solid #333;padding:16px 18px;margin-bottom:16px;">${rowsHtml}</table>` : '') +
         para(g('body'), rtl) +
         bulletSections(fields, values, lang, rtl, false) +
         cta(values, lang, rtl),
