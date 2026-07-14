@@ -20,6 +20,15 @@ function isHeic(file: File): boolean {
   return file.type === 'image/heic' || file.type === 'image/heif' || name.endsWith('.heic') || name.endsWith('.heif');
 }
 
+function readAsDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('Could not read the selected file.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
 /**
  * Resizes/compresses an image client-side before upload, so a raw phone photo
  * doesn't bloat the Dataverse row or the outgoing email (ceiling: ~1MB inline image).
@@ -28,6 +37,12 @@ function isHeic(file: File): boolean {
  * in Chromium-based browsers (only Safari supports it natively) — that silent decode
  * failure was surfacing as "could not process that image". heic2any transcodes to JPEG
  * first so the rest of the pipeline (canvas resize/compress) works the same as any photo.
+ *
+ * Loads the source through a data: URI (FileReader) rather than a blob: object URL —
+ * this app runs inside a sandboxed third-party iframe (the Power Apps host), and both
+ * Safari (ITP) and Brave (Shields) were found to block blob: URLs in that context,
+ * making every upload fail with an onerror regardless of file type. data: URIs aren't
+ * subject to that restriction.
  */
 export async function compressImage(file: File, maxWidth = 800, quality = 0.7): Promise<CompressedImage> {
   let source: Blob = file;
@@ -37,11 +52,11 @@ export async function compressImage(file: File, maxWidth = 800, quality = 0.7): 
     source = Array.isArray(converted) ? converted[0] : converted;
   }
 
+  const sourceDataUrl = await readAsDataUrl(source);
+
   return new Promise((resolve, reject) => {
     const img = new Image();
-    const objectUrl = URL.createObjectURL(source);
     img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
       const scale = Math.min(1, maxWidth / img.width);
       const canvas = document.createElement('canvas');
       canvas.width = Math.round(img.width * scale);
@@ -66,9 +81,8 @@ export async function compressImage(file: File, maxWidth = 800, quality = 0.7): 
       );
     };
     img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
       reject(new Error(`Could not decode "${file.name}" — try a JPG or PNG.`));
     };
-    img.src = objectUrl;
+    img.src = sourceDataUrl;
   });
 }
